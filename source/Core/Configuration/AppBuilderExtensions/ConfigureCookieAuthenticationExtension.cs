@@ -43,7 +43,8 @@ namespace Owin
                 CookieName = options.Prefix + Constants.PrimaryAuthenticationType,
                 ExpireTimeSpan = options.ExpireTimeSpan,
                 SlidingExpiration = options.SlidingExpiration,
-                TicketDataFormat = new TicketDataFormat(new DataProtectorAdapter(dataProtector, options.Prefix + Constants.PrimaryAuthenticationType))
+                TicketDataFormat = new TicketDataFormat(new DataProtectorAdapter(dataProtector, options.Prefix + Constants.PrimaryAuthenticationType)),
+                SessionStore = options.SessionStore
             };
             app.UseCookieAuthentication(primary);
 
