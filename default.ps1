@@ -88,7 +88,7 @@ task CreateNuGetPackage -depends ILMerge {
 	}
 
 
-	copy-item $src_directory\Thinktecture.IdentityServer3.nuspec $dist_directory
-	copy-item $output_directory\Thinktecture.IdentityServer3.xml $dist_directory\lib\net45\
-	exec { . $nuget_path pack $dist_directory\Thinktecture.IdentityServer3.nuspec -BasePath $dist_directory -o $dist_directory -version $packageVersion }
+	copy-item $src_directory\Thinktecture.IdentityServer3.nuspec $dist_directory\Thinktecture.IdentityServer.NewOrbit3.nuspec
+	copy-item $output_directory\Thinktecture.IdentityServer3.xml $dist_directory\lib\net45\\Thinktecture.IdentityServer.NewOrbit3.xml
+	exec { . $nuget_path pack $dist_directory\Thinktecture.IdentityServer.NewOrbit3.nuspec -BasePath $dist_directory -o $dist_directory -version $packageVersion }
 }
