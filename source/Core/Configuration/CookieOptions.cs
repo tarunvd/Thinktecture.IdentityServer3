@@ -18,8 +18,6 @@ using System;
 
 namespace Thinktecture.IdentityServer.Core.Configuration
 {
-    using Microsoft.Owin.Security.Cookies;
-
     /// <summary>
     /// Configured how cookies are managed by IdentityServer.
     /// </summary>
@@ -97,9 +95,8 @@ namespace Thinktecture.IdentityServer.Core.Configuration
 
         /// <summary>
         /// An optional container in which to store the identity across requests. When used, only a session identifier is sent
-        ///             to the client. This can be used to mitigate potential problems with very large identities.
-        /// 
+        /// to the client. This can be used to mitigate potential problems with very large identities.
         /// </summary>
-        public IAuthenticationSessionStore SessionStore { get; set; }
+        public IAuthenticationSessionStoreProvider SessionStoreProvider { get; set; }
     }
 }

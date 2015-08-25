@@ -44,8 +44,11 @@ namespace Owin
                 ExpireTimeSpan = options.ExpireTimeSpan,
                 SlidingExpiration = options.SlidingExpiration,
                 TicketDataFormat = new TicketDataFormat(new DataProtectorAdapter(dataProtector, options.Prefix + Constants.PrimaryAuthenticationType)),
-                SessionStore = options.SessionStore
             };
+            if (options.SessionStoreProvider != null)
+            {
+                primary.SessionStore = new AuthenticationSessionStoreWrapper(options.SessionStoreProvider);
+            }
             app.UseCookieAuthentication(primary);
 
             var external = new CookieAuthenticationOptions

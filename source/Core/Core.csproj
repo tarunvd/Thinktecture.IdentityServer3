@@ -134,7 +134,9 @@
     <Compile Include="App_Packages\LibLog.2.0\LibLog.cs" />
     <Compile Include="Configuration\AppBuilderExtensions\ConfigureIdentityServerIssuerExtension.cs" />
     <Compile Include="Configuration\AppBuilderExtensions\ConfigureRequestIdExtension.cs" />
+    <Compile Include="Configuration\AuthenticationSessionStoreWrapper.cs" />
     <Compile Include="Configuration\EventsOptions.cs" />
+    <Compile Include="Configuration\IAuthenticationSessionStoreProvider.cs" />
     <Compile Include="Configuration\X509CertificateDataProtector.cs" />
     <Compile Include="Endpoints\Connect\RevocationEndpointController.cs" />
     <Compile Include="Endpoints\WelcomeController.cs" />
