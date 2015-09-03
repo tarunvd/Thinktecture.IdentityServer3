@@ -15,6 +15,7 @@
  */
 
 using Autofac;
+using Autofac.Integration.Owin;
 using Microsoft.Owin;
 using Microsoft.Owin.Security;
 using System;
@@ -111,6 +112,92 @@ namespace Thinktecture.IdentityServer.Core.Extensions
         }
 
         /// <summary>
+        /// Issues the login cookie for IdentityServer.
+        /// </summary>
+        /// <param name="env">The OWIN environment.</param>
+        /// <param name="login">The login information.</param>
+        /// <exception cref="System.ArgumentNullException">
+        /// env
+        /// or
+        /// login
+        /// </exception>
+        public static void IssueLoginCookie(this IDictionary<string, object> env, AuthenticatedLogin login)
+        {
+            if (env == null) throw new ArgumentNullException("env");
+            if (login == null) throw new ArgumentNullException("login");
+
+            var options = env.ResolveDependency<IdentityServerOptions>();
+            var sessionCookie = env.ResolveDependency<SessionCookie>();
+            var context = new OwinContext(env);
+
+            var props = new AuthenticationProperties();
+
+            // if false, then they're explicit in preventing a persistent cookie
+            if (login.PersistentLogin != false)
+            {
+                if (login.PersistentLogin == true || options.AuthenticationOptions.CookieOptions.IsPersistent)
+                {
+                    props.IsPersistent = true;
+                    if (login.PersistentLogin == true)
+                    {
+                        var expires = login.PersistentLoginExpiration ?? DateTimeHelper.UtcNow.Add(options.AuthenticationOptions.CookieOptions.RememberMeDuration);
+                        props.ExpiresUtc = expires;
+                    }
+                }
+            }
+
+            var authenticationMethod = login.AuthenticationMethod;
+            var identityProvider = login.IdentityProvider ?? Constants.BuiltInIdentityProvider;
+            if (String.IsNullOrWhiteSpace(authenticationMethod))
+            {
+                if (identityProvider == Constants.BuiltInIdentityProvider)
+                {
+                    authenticationMethod = Constants.AuthenticationMethods.Password;
+                }
+                else
+                {
+                    authenticationMethod = Constants.AuthenticationMethods.External;
+                }
+            }
+
+            var user = IdentityServerPrincipal.Create(login.Subject, login.Name, authenticationMethod, identityProvider, Constants.PrimaryAuthenticationType);
+            var identity = user.Identities.First();
+
+            var claims = login.Claims;
+            if (claims != null && claims.Any())
+            {
+                claims = claims.Where(x => !Constants.OidcProtocolClaimTypes.Contains(x.Type));
+                claims = claims.Where(x => x.Type != Constants.ClaimTypes.Name);
+                identity.AddClaims(claims);
+            }
+
+            context.Authentication.SignIn(props, identity);
+            sessionCookie.IssueSessionId(login.PersistentLogin, login.PersistentLoginExpiration);
+        }
+
+        /// <summary>
+        /// Gets the sign in message.
+        /// </summary>
+        /// <param name="env">The OWIN environment.</param>
+        /// <param name="id">The signin identifier.</param>
+        /// <returns></returns>
+        /// <exception cref="System.ArgumentNullException">
+        /// env
+        /// or
+        /// id
+        /// </exception>
+        public static SignInMessage GetSignInMessage(this IDictionary<string, object> env, string id)
+        {
+            if (env == null) throw new ArgumentNullException("env");
+            if (string.IsNullOrEmpty(id)) throw new ArgumentNullException("id");
+
+            var options = env.ResolveDependency<IdentityServerOptions>();
+            var cookie = new MessageCookie<SignInMessage>(env, options);
+
+            return cookie.Read(id);
+        }
+
+        /// <summary>
         /// Gets the current request identifier.
         /// </summary>
         /// <param name="env">The OWIN environment.</param>
@@ -150,12 +237,7 @@ namespace Thinktecture.IdentityServer.Core.Extensions
 
         internal static ILifetimeScope GetLifetimeScope(this IDictionary<string, object> env)
         {
-            return new OwinContext(env).Get<ILifetimeScope>(Constants.OwinEnvironment.AutofacScope);
-        }
-
-        internal static void SetLifetimeScope(this IDictionary<string, object> env, ILifetimeScope scope)
-        {
-            new OwinContext(env).Set(Constants.OwinEnvironment.AutofacScope, scope);
+            return new OwinContext(env).GetAutofacLifetimeScope();
         }
 
         internal static T ResolveDependency<T>(this IDictionary<string, object> env)

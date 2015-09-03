@@ -25,7 +25,7 @@ namespace Thinktecture.IdentityServer.Core
 {
     public static class Constants
     {
-        public const string IdentityServerName = "Thinktecture IdentityServer3";
+        public const string IdentityServerName = "IdentityServer3";
         
         public const string PrimaryAuthenticationType       = "idsrv";
         public const string ExternalAuthenticationType      = "idsrv.external";
@@ -449,7 +449,7 @@ namespace Thinktecture.IdentityServer.Core
             public const string PartialLoginResumeId = "partial_login_resume_id:{0}";
         }
 
-        public static readonly string[] ExternalIdentityProviderProtocolClaimTypes = new string[]
+        public static readonly string[] ClaimsProviderFilerClaimTypes = new string[]
         {
             ClaimTypes.Audience,
             ClaimTypes.Issuer,
@@ -458,45 +458,40 @@ namespace Thinktecture.IdentityServer.Core
             ClaimTypes.UpdatedAt,
             ClaimTypes.IssuedAt,
             ClaimTypes.AuthenticationMethod,
-            ClaimTypes.AuthenticationContextClassReference,
             ClaimTypes.AuthenticationTime,
+            ClaimTypes.AuthorizedParty,
+            ClaimTypes.AccessTokenHash,
+            ClaimTypes.AuthorizationCodeHash,
+            ClaimTypes.Nonce,
+            ClaimTypes.IdentityProvider
+        };
+
+        public static readonly string[] OidcProtocolClaimTypes = new string[]
+        {
+            ClaimTypes.Subject,
+            //ClaimTypes.Name,
+            ClaimTypes.AuthenticationMethod,
+            ClaimTypes.IdentityProvider,
+            ClaimTypes.AuthenticationTime,
+            ClaimTypes.Audience,
+            ClaimTypes.Issuer,
+            ClaimTypes.NotBefore,
+            ClaimTypes.Expiration,
+            ClaimTypes.UpdatedAt,
+            ClaimTypes.IssuedAt,
+            ClaimTypes.AuthenticationContextClassReference,
             ClaimTypes.AuthorizedParty,
             ClaimTypes.AccessTokenHash,
             ClaimTypes.AuthorizationCodeHash,
             ClaimTypes.Nonce,
             ClaimTypes.JwtId,
             ClaimTypes.Scope,
-            ClaimTypes.IdentityProvider,
         };
 
         public static readonly string[] AuthenticateResultClaimTypes = new string[]
         {
             ClaimTypes.Subject,
             ClaimTypes.Name,
-            ClaimTypes.AuthenticationMethod,
-            ClaimTypes.IdentityProvider,
-            ClaimTypes.AuthenticationTime,
-        };
-
-        public static readonly string[] CustomGrantProtocolClaimTypes = new string[]
-        {
-            ClaimTypes.Audience,
-            ClaimTypes.Issuer,
-            ClaimTypes.NotBefore,
-            ClaimTypes.Expiration,
-            ClaimTypes.UpdatedAt,
-            ClaimTypes.IssuedAt,
-            ClaimTypes.AuthenticationMethod,
-            ClaimTypes.AuthenticationContextClassReference,
-            ClaimTypes.AuthenticationTime,
-            ClaimTypes.AuthorizedParty,
-            ClaimTypes.AccessTokenHash,
-            ClaimTypes.AuthorizationCodeHash,
-            ClaimTypes.Nonce,
-            ClaimTypes.JwtId,
-            ClaimTypes.Scope,
-            ClaimTypes.IdentityProvider,
-            ClaimTypes.Subject,
             ClaimTypes.AuthenticationMethod,
             ClaimTypes.IdentityProvider,
             ClaimTypes.AuthenticationTime,
@@ -514,6 +509,12 @@ namespace Thinktecture.IdentityServer.Core
         {
             public const string Basic    = "Basic";
             public const string FormPost = "FormPost";
+        }
+
+        public static class TokenEndpointAuthenticationMethods
+        {
+            public const string PostBody = "client_secret_post";
+            public const string BasicAuthentication = "client_secret_basic";
         }
 
         public static class RouteNames
@@ -582,7 +583,6 @@ namespace Thinktecture.IdentityServer.Core
             public const string IdentityServerBasePath = "idsrv:IdentityServerBasePath";
             public const string IdentityServerHost     = "idsrv:IdentityServerHost";
 
-            public const string AutofacScope = "idsrv:AutofacScope";
             public const string RequestId    = "idsrv:RequestId";
         }
         

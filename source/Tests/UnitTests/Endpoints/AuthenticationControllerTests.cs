@@ -158,10 +158,37 @@ namespace Thinktecture.IdentityServer.Tests.Endpoints
         }
 
         [Fact]
-        public void GetLogin_NoSignInMessage_ReturnNotFound()
+        public void GetLogin_NoSignInMessage_ReturnError()
         {
             var resp = Get(Constants.RoutePaths.Login);
-            resp.StatusCode.Should().Be(HttpStatusCode.NotFound);
+            resp.AssertPage("error");
+        }
+
+        [Fact]
+        public void GetLogin_NoSignInMessage_InvalidSignInRedirectUrl_ConfiguredWithRelativePath_RedirectsCorrectly()
+        {
+            this.options.AuthenticationOptions.InvalidSignInRedirectUrl = "~/fail";
+            var resp = Get(Constants.RoutePaths.Login);
+            resp.StatusCode.Should().Be(HttpStatusCode.Redirect);
+            resp.Headers.Location.AbsoluteUri.Should().Be(Url("/fail"));
+        }
+
+        [Fact]
+        public void GetLogin_NoSignInMessage_InvalidSignInRedirectUrl_ConfiguredWithAbsolutePath_RedirectsCorrectly()
+        {
+            this.options.AuthenticationOptions.InvalidSignInRedirectUrl = "/fail";
+            var resp = Get(Constants.RoutePaths.Login);
+            resp.StatusCode.Should().Be(HttpStatusCode.Redirect);
+            resp.Headers.Location.AbsoluteUri.Should().Be(Url("/fail"));
+        }
+
+        [Fact]
+        public void GetLogin_NoSignInMessage_InvalidSignInRedirectUrl_ConfiguredWithUrl_RedirectsCorrectly()
+        {
+            this.options.AuthenticationOptions.InvalidSignInRedirectUrl = "http://fail/fail";
+            var resp = Get(Constants.RoutePaths.Login);
+            resp.StatusCode.Should().Be(HttpStatusCode.Redirect);
+            resp.Headers.Location.AbsoluteUri.Should().Be("http://fail/fail");
         }
 
         [Fact]
@@ -292,6 +319,20 @@ namespace Thinktecture.IdentityServer.Tests.Endpoints
         {
             options.AuthenticationOptions.EnableLocalLogin = false;
             clients.First().IdentityProviderRestrictions = new List<string>
+            {
+                "Google"
+            };
+            var resp = GetLoginPage();
+            resp.StatusCode.Should().Be(HttpStatusCode.Found);
+            resp.Headers.Location.AbsoluteUri.StartsWith(Url(Constants.RoutePaths.LoginExternal) + "?provider=Google").Should().BeTrue();
+        }
+
+        [Fact]
+        public void GetLogin_ClientHasDisableLocalLogin_HasSingleProvider_RedirectsToProvider()
+        {
+            var client = clients.First();
+            client.EnableLocalLogin = false;
+            client.IdentityProviderRestrictions = new List<string>
             {
                 "Google"
             };
@@ -960,6 +1001,74 @@ namespace Thinktecture.IdentityServer.Tests.Endpoints
             url += GetLongString();
             var resp = Get(url);
             resp.AssertPage("error");
+        }
+
+        [Fact]
+        public void GetLogin_SigninMessageThresholdSetToX_GetLoginXTimesOnlyLatestXMessagesAreKept()
+        {
+            const int signInMessageThreshold = 3;
+            options.AuthenticationOptions.SignInMessageThreshold = signInMessageThreshold;
+
+            for (var i = 0; i < signInMessageThreshold; i++)
+            {
+                GetLoginPage();
+            }
+
+            var theNextRequest = GetLoginPage();
+            theNextRequest.RequestMessage.Headers
+                .GetValues("Cookie")
+                .Count(c => c.StartsWith("SignInMessage."))
+                .Should()
+                .Be(options.AuthenticationOptions.SignInMessageThreshold);
+        }
+
+        [Fact]
+        public void GetLogin_SigninMessageThresholdSetToX_GetLoginMoreThanXTimesOnlyLatestXMessagesAreKept()
+        {
+            options.AuthenticationOptions.SignInMessageThreshold = 3;
+            var moreThanSignInThreshold = options.AuthenticationOptions.SignInMessageThreshold + 1;
+
+            for (var i = 0; i < moreThanSignInThreshold; i++)
+            {
+                GetLoginPage();
+            }
+
+            var theNextRequest = GetLoginPage();
+            theNextRequest.RequestMessage.Headers
+                .GetValues("Cookie")
+                .Count(c => c.StartsWith("SignInMessage."))
+                .Should()
+                .Be(options.AuthenticationOptions.SignInMessageThreshold);
+        }
+
+        [Fact]
+        public void GetLogin_SigninMessageThresholdSetToZero_OneSignInMessageKept()
+        {
+            options.AuthenticationOptions.SignInMessageThreshold = 0;
+
+            GetLoginPage();
+
+            var theNextRequest = GetLoginPage();
+            theNextRequest.RequestMessage.Headers
+                .GetValues("Cookie")
+                .Count(c => c.StartsWith("SignInMessage."))
+                .Should()
+                .Be(1);
+        }
+
+        [Fact]
+        public void GetLogin_SigninMessageThresholdSetToNegative_OneSignInMessageKept()
+        {
+            options.AuthenticationOptions.SignInMessageThreshold = -42;
+
+            GetLoginPage();
+
+            var theNextRequest = GetLoginPage();
+            theNextRequest.RequestMessage.Headers
+                .GetValues("Cookie")
+                .Count(c => c.StartsWith("SignInMessage."))
+                .Should()
+                .Be(1);
         }
 
         [Fact]

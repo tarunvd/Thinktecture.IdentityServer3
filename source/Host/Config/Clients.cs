@@ -51,16 +51,6 @@ namespace Thinktecture.IdentityServer.Host.Config
                         "https://localhost:44312/callback",
                     },
 
-                    ScopeRestrictions = new List<string>
-                    {
-                        Constants.StandardScopes.OpenId,
-                        Constants.StandardScopes.Profile,
-                        Constants.StandardScopes.Email,
-                        Constants.StandardScopes.OfflineAccess,
-                        "read",
-                        "write"
-                    },
-                    
                     AccessTokenType = AccessTokenType.Reference,
                 },
 
@@ -115,6 +105,10 @@ namespace Thinktecture.IdentityServer.Host.Config
                     {
                         "http://localhost:23453/index.html",
                         "http://localhost:21575/index.html"
+                    },
+
+                    AllowedCorsOrigins = new List<string>{
+                        "http://localhost:21575"
                     },
                     
                     IdentityTokenLifetime = 360,

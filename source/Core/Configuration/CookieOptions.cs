@@ -30,9 +30,9 @@ namespace Thinktecture.IdentityServer.Core.Configuration
         {
             ExpireTimeSpan = Constants.DefaultCookieTimeSpan;
             SlidingExpiration = false;
-            
             AllowRememberMe = true;
             RememberMeDuration = Constants.DefaultRememberMeDuration;
+            SecureMode = CookieSecureMode.SameAsRequest;
         }
 
         /// <summary>
@@ -98,5 +98,13 @@ namespace Thinktecture.IdentityServer.Core.Configuration
         /// to the client. This can be used to mitigate potential problems with very large identities.
         /// </summary>
         public IAuthenticationSessionStoreProvider SessionStoreProvider { get; set; }
+		
+        /// <summary>
+        /// Gets or sets the mode for issuing the secure flag on the cookies issued. Defaults to SameAsRequest.
+        /// </summary>
+        /// <value>
+        /// The secure.
+        /// </value>
+        public CookieSecureMode SecureMode { get; set; }
     }
 }

@@ -80,6 +80,12 @@ namespace Thinktecture.IdentityServer.Core.Configuration.Hosting
             }
             builder.Register(fact.ViewService);
 
+            if (fact.CorsPolicyService == null)
+            {
+                fact.CorsPolicyService = new Registration<ICorsPolicyService>(new DefaultCorsPolicyService(options.CorsPolicy ?? new CorsPolicy()));
+            }
+            builder.Register(fact.CorsPolicyService);
+
             // this is more of an internal interface, but maybe we want to open it up as pluggable?
             // this is used by the DefaultClientPermissionsService below, or it could be used
             // by a custom IClientPermissionsService
@@ -272,7 +278,7 @@ namespace Thinktecture.IdentityServer.Core.Configuration.Hosting
             }
             else if (registration.Factory != null)
             {
-                var reg = builder.Register(ctx => registration.Factory(new AutofacDependencyResolver(ctx)));
+                var reg = builder.Register(ctx => registration.Factory(new AutofacDependencyResolver(ctx.Resolve<IComponentContext>())));
                 if (name != null)
                 {
                     reg.Named(name, registration.DependencyType);

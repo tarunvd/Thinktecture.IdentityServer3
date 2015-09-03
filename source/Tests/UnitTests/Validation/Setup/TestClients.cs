@@ -26,10 +26,32 @@ namespace Thinktecture.IdentityServer.Tests.Validation
             return new List<Client>
             {
                 new Client
-                    {
+                {
                         ClientName = "Code Client",
                         Enabled = true,
                         ClientId = "codeclient",
+                        ClientSecrets = new List<ClientSecret>
+                        { 
+                            new ClientSecret("secret".Sha256())
+                        },
+
+                        Flow = Flows.AuthorizationCode,
+                        
+                        RequireConsent = false,
+                    
+                        RedirectUris = new List<string>
+                        {
+                            "https://server/cb",
+                        },
+
+                        AuthorizationCodeLifetime = 60
+                    },
+
+                    new Client
+                {
+                        ClientName = "Hybrid Client",
+                        Enabled = true,
+                        ClientId = "hybridclient",
                         ClientSecrets = new List<ClientSecret>
                         { 
                             new ClientSecret("secret".Sha256())
@@ -57,6 +79,25 @@ namespace Thinktecture.IdentityServer.Tests.Validation
                         },
 
                         Flow = Flows.Implicit,
+                        RequireConsent = false,
+                    
+                        RedirectUris = new List<string>
+                        {
+                            "oob://implicit/cb"
+                        },
+                    },
+                    new Client
+                    {
+                        ClientName = "Implicit and Client Credentials Client",
+                        Enabled = true,
+                        ClientId = "implicit_and_client_creds_client",
+                        ClientSecrets = new List<ClientSecret>
+                        { 
+                            new ClientSecret("secret".Sha256())
+                        },
+
+                        Flow = Flows.Implicit,
+                        AllowClientCredentialsOnly = true,
                         RequireConsent = false,
                     
                         RedirectUris = new List<string>

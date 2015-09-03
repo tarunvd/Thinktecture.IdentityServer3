@@ -70,12 +70,12 @@ namespace Owin
             app.ConfigureIdentityServerBaseUrl(options.PublicOrigin);
             app.ConfigureIdentityServerIssuer(options);
 
-            app.UseCors(options.CorsPolicy);
+            var container = AutofacConfig.Configure(options);
+            app.UseAutofacMiddleware(container);
+
+            app.UseCors();
             app.ConfigureCookieAuthentication(options.AuthenticationOptions.CookieOptions, options.DataProtector);
 
-            var container = AutofacConfig.Configure(options);
-            app.Use<AutofacContainerMiddleware>(container);
-            
             if (options.PluginConfiguration != null)
             {
                 options.PluginConfiguration(app, options);
@@ -89,7 +89,10 @@ namespace Owin
             app.UseEmbeddedFileServer();
 
             SignatureConversions.AddConversions(app);
-            app.UseWebApi(WebApiConfig.Configure(options));
+            
+            var httpConfig = WebApiConfig.Configure(options, container);
+            app.UseAutofacWebApi(httpConfig);
+            app.UseWebApi(httpConfig);
 
             using (var child = container.CreateScopeWithEmptyOwinContext())
             {

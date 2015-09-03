@@ -20,6 +20,7 @@ using System;
 using System.ComponentModel;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using System.Web.Http;
@@ -95,14 +96,14 @@ namespace Thinktecture.IdentityServer.Core.Endpoints
 
         [Route(Constants.RoutePaths.Login, Name = Constants.RouteNames.Login)]
         [HttpGet]
-        public async Task<IHttpActionResult> Login(string signin)
+        public async Task<IHttpActionResult> Login(string signin = null)
         {
             Logger.Info("Login page requested");
 
             if (signin.IsMissing())
             {
                 Logger.Error("No signin id passed");
-                return RenderErrorPage(localizationService.GetMessage(MessageIds.NoSignInCookie));
+                return HandleNoSignin();
             }
 
             if (signin.Length > MaxInputParamLength)
@@ -115,7 +116,7 @@ namespace Thinktecture.IdentityServer.Core.Endpoints
             if (signInMessage == null)
             {
                 Logger.Error("No cookie matching signin id found");
-                return RenderErrorPage(localizationService.GetMessage(MessageIds.NoSignInCookie));
+                return HandleNoSignin();
             }
 
             Logger.DebugFormat("signin message passed to login: {0}", JsonConvert.SerializeObject(signInMessage, Formatting.Indented));
@@ -164,7 +165,7 @@ namespace Thinktecture.IdentityServer.Core.Endpoints
             if (signin.IsMissing())
             {
                 Logger.Error("No signin id passed");
-                return RenderErrorPage(localizationService.GetMessage(MessageIds.NoSignInCookie));
+                return HandleNoSignin();
             }
 
             if (signin.Length > MaxInputParamLength)
@@ -177,10 +178,10 @@ namespace Thinktecture.IdentityServer.Core.Endpoints
             if (signInMessage == null)
             {
                 Logger.Error("No cookie matching signin id found");
-                return RenderErrorPage(localizationService.GetMessage(MessageIds.NoSignInCookie));
+                return HandleNoSignin();
             }
 
-            if (!(await IsLocalLoginAllowed(signInMessage)))
+            if (!(await IsLocalLoginAllowedForClient(signInMessage)))
             {
                 Logger.ErrorFormat("Login not allowed for client {0}", signInMessage.ClientId);
                 return RenderErrorPage();
@@ -266,7 +267,7 @@ namespace Thinktecture.IdentityServer.Core.Endpoints
             if (signin.IsMissing())
             {
                 Logger.Error("No signin id passed");
-                return RenderErrorPage(localizationService.GetMessage(MessageIds.NoSignInCookie));
+                return HandleNoSignin();
             }
 
             if (signin.Length > MaxInputParamLength)
@@ -279,7 +280,7 @@ namespace Thinktecture.IdentityServer.Core.Endpoints
             if (signInMessage == null)
             {
                 Logger.Error("No cookie matching signin id found");
-                return RenderErrorPage(localizationService.GetMessage(MessageIds.NoSignInCookie));
+                return HandleNoSignin();
             }
 
             if (!(await clientStore.IsValidIdentityProviderAsync(signInMessage.ClientId, provider)))
@@ -332,14 +333,14 @@ namespace Thinktecture.IdentityServer.Core.Endpoints
             if (signInId.IsMissing())
             {
                 Logger.Error("No signin id passed");
-                return RenderErrorPage(localizationService.GetMessage(MessageIds.NoSignInCookie));
+                return HandleNoSignin();
             }
 
             var signInMessage = signInMessageCookie.Read(signInId);
             if (signInMessage == null)
             {
                 Logger.Error("No cookie matching signin id found");
-                return RenderErrorPage(localizationService.GetMessage(MessageIds.NoSignInCookie));
+                return HandleNoSignin();
             }
 
             var user = await context.GetIdentityFromExternalProvider();
@@ -430,7 +431,7 @@ namespace Thinktecture.IdentityServer.Core.Endpoints
             if (signInMessage == null)
             {
                 Logger.Error("No cookie matching signin id found");
-                return RenderErrorPage(localizationService.GetMessage(MessageIds.NoSignInCookie));
+                return RenderErrorPage();
             }
 
             // check to see if the partial login has all the claim types needed to login
@@ -586,10 +587,35 @@ namespace Thinktecture.IdentityServer.Core.Endpoints
             return await RenderLoggedOutPage(id);
         }
 
+        private IHttpActionResult HandleNoSignin()
+        {
+            if (options.AuthenticationOptions.InvalidSignInRedirectUrl.IsMissing())
+            {
+                return RenderErrorPage(localizationService.GetMessage(MessageIds.NoSignInCookie));
+            }
+
+            var url = options.AuthenticationOptions.InvalidSignInRedirectUrl;
+            if (url.StartsWith("~/"))
+            {
+                url = url.Substring(2);
+                url = Request.GetOwinEnvironment().GetIdentityServerBaseUrl() + url;
+            }
+            else if (url.StartsWith("/"))
+            {
+                url = Request.GetOwinEnvironment().GetIdentityServerHost() + url;
+            }
+            else
+            {
+                url = options.AuthenticationOptions.InvalidSignInRedirectUrl;
+            }
+
+            return Redirect(url);
+        }
+        
         private IHttpActionResult SignInAndRedirect(SignInMessage signInMessage, string signInMessageId, AuthenticateResult authResult, bool? rememberMe = null)
         {
+            ClearAuthenticationCookies();
             IssueAuthenticationCookie(signInMessageId, authResult, rememberMe);
-            sessionCookie.IssueSessionId();
 
             var redirectUrl = GetRedirectUrl(signInMessage, authResult);
             Logger.InfoFormat("redirecting to: {0}", redirectUrl);
@@ -600,7 +626,14 @@ namespace Thinktecture.IdentityServer.Core.Endpoints
         {
             if (authResult == null) throw new ArgumentNullException("authResult");
 
-            Logger.InfoFormat("issuing cookie{0}", authResult.IsPartialSignIn ? " (partial login)" : "");
+            if (authResult.IsPartialSignIn)
+            {
+                Logger.Info("issuing partial signin cookie");
+            }
+            else
+            {
+                Logger.Info("issuing primary signin cookie");
+            }
 
             var props = new Microsoft.Owin.Security.AuthenticationProperties();
 
@@ -621,6 +654,7 @@ namespace Thinktecture.IdentityServer.Core.Endpoints
             else
             {
                 signInMessageCookie.Clear(signInMessageId);
+                sessionCookie.IssueSessionId(rememberMe);
             }
 
             if (!authResult.IsPartialSignIn)
@@ -642,8 +676,6 @@ namespace Thinktecture.IdentityServer.Core.Endpoints
                 }
             }
 
-            ClearAuthenticationCookies();
-            
             context.Authentication.SignIn(props, id);
         }
 
@@ -697,17 +729,14 @@ namespace Thinktecture.IdentityServer.Core.Endpoints
             }
         }
 
-        async Task<bool> IsLocalLoginAllowed(SignInMessage message)
+        async Task<bool> IsLocalLoginAllowedForClient(SignInMessage message)
         {
-            if (this.options.AuthenticationOptions.EnableLocalLogin)
+            if (message != null && message.ClientId.IsPresent())
             {
-                if (message != null && message.ClientId.IsPresent())
+                var client = await clientStore.FindClientByIdAsync(message.ClientId);
+                if (client != null)
                 {
-                    var client = await clientStore.FindClientByIdAsync(message.ClientId);
-                    if (client != null)
-                    {
-                        if (client.EnableLocalLogin == false) return false;
-                    }
+                    return client.EnableLocalLogin;
                 }
             }
 
@@ -720,7 +749,8 @@ namespace Thinktecture.IdentityServer.Core.Endpoints
 
             username = GetUserNameForLoginPage(message, username);
 
-            var loginAllowed = await IsLocalLoginAllowed(message);
+            var isLocalLoginAllowedForClient = await IsLocalLoginAllowedForClient(message);
+            var isLocalLoginAllowed = isLocalLoginAllowedForClient && options.AuthenticationOptions.EnableLocalLogin;
 
             var idpRestrictions = await clientStore.GetIdentityProviderRestrictionsAsync(message.ClientId);
             var providers = context.GetExternalAuthenticationProviders(idpRestrictions);
@@ -733,9 +763,16 @@ namespace Thinktecture.IdentityServer.Core.Endpoints
             }
             else
             {
-                if (options.AuthenticationOptions.EnableLocalLogin == false)
+                if (isLocalLoginAllowed == false)
                 {
-                    Logger.Info("local login disabled");
+                    if (options.AuthenticationOptions.EnableLocalLogin)
+                    {
+                        Logger.Info("local login disabled");
+                    }
+                    if (isLocalLoginAllowedForClient)
+                    {
+                        Logger.Info("local login disabled for the client");
+                    }
 
                     string url = null;
 
@@ -775,7 +812,7 @@ namespace Thinktecture.IdentityServer.Core.Endpoints
                 ExternalProviders = visibleLinks,
                 AdditionalLinks = loginPageLinks,
                 ErrorMessage = errorMessage,
-                LoginUrl = loginAllowed ? Url.Route(Constants.RouteNames.Login, new { signin = signInMessageId }) : null,
+                LoginUrl = isLocalLoginAllowed ? Url.Route(Constants.RouteNames.Login, new { signin = signInMessageId }) : null,
                 AllowRememberMe = options.AuthenticationOptions.CookieOptions.AllowRememberMe,
                 RememberMe = options.AuthenticationOptions.CookieOptions.AllowRememberMe && rememberMe,
                 CurrentUser = context.GetCurrentUserDisplayName(),
@@ -842,7 +879,9 @@ namespace Thinktecture.IdentityServer.Core.Endpoints
                 SiteUrl = baseUrl,
                 IFrameUrls = iframeUrls,
                 ClientName = clientName,
-                RedirectUrl = redirectUrl
+                RedirectUrl = redirectUrl,
+                AutoRedirect = options.AuthenticationOptions.EnablePostSignOutAutoRedirect,
+                AutoRedirectDelay = options.AuthenticationOptions.PostSignOutAutoRedirectDelay
             };
             return new LoggedOutActionResult(viewService, loggedOutModel);
         }
