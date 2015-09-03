@@ -2,7 +2,7 @@ using System.Threading.Tasks;
 using Microsoft.Owin.Security;
 using Microsoft.Owin.Security.Cookies;
 
-namespace Thinktecture.IdentityServer.Core.Configuration
+namespace IdentityServer3.Core.Configuration
 {
     internal class AuthenticationSessionStoreWrapper : IAuthenticationSessionStore
     {

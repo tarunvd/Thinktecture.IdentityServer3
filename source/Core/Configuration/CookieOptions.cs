@@ -98,6 +98,8 @@ namespace IdentityServer3.Core.Configuration
         /// to the client. This can be used to mitigate potential problems with very large identities.
         /// </summary>
         public IAuthenticationSessionStoreProvider SessionStoreProvider { get; set; }
+
+        /// <summary>
         /// Gets or sets the mode for issuing the secure flag on the cookies issued. Defaults to SameAsRequest.
         /// </summary>
         /// <value>
