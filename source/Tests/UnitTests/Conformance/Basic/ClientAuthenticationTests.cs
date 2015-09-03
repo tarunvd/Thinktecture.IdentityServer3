@@ -15,15 +15,15 @@
  */
 
 using FluentAssertions;
+using IdentityServer3.Core.Models;
 using System;
 using System.Collections.Generic;
 using System.Net;
-using Thinktecture.IdentityModel.Http;
-using Thinktecture.IdentityServer.Core.Models;
+using System.Net.Http;
 using Xunit;
 
 
-namespace Thinktecture.IdentityServer.Tests.Conformance.Basic
+namespace IdentityServer3.Tests.Conformance.Basic
 {
     public class ClientAuthenticationTests : IdentityServerHostTest
     {
@@ -36,15 +36,19 @@ namespace Thinktecture.IdentityServer.Tests.Conformance.Basic
         protected override void PreInit()
         {
             host.Scopes.Add(StandardScopes.OpenId);
+            
             host.Clients.Add(new Client
             {
                 Enabled = true,
                 ClientId = client_id,
-                ClientSecrets = new List<ClientSecret>
+                ClientSecrets = new List<Secret>
                 {
-                    new ClientSecret(client_secret)
+                    new Secret(client_secret.Sha256())
                 },
+
                 Flow = Flows.AuthorizationCode,
+                AllowAccessToAllScopes = true,
+                
                 RequireConsent = false,
                 RedirectUris = new List<string>
                 {
@@ -55,7 +59,7 @@ namespace Thinktecture.IdentityServer.Tests.Conformance.Basic
 
         [Fact]
         [Trait("Category", Category)]
-        public void Token_endpoint_suports_client_authentication_with_basic_authentication_with_POST()
+        public void Token_endpoint_supports_client_authentication_with_basic_authentication_with_POST()
         {
             host.Login();
 
@@ -90,7 +94,7 @@ namespace Thinktecture.IdentityServer.Tests.Conformance.Basic
 
         [Fact]
         [Trait("Category", Category)]
-        public void Token_endpoint_suports_client_authentication_with_form_encoded_authentication_in_POST_body()
+        public void Token_endpoint_supports_client_authentication_with_form_encoded_authentication_in_POST_body()
         {
             host.Login();
 

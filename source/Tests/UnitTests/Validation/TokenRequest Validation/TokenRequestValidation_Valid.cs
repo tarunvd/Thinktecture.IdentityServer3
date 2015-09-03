@@ -15,19 +15,19 @@
  */
 
 using FluentAssertions;
+using IdentityServer3.Core;
+using IdentityServer3.Core.Models;
+using IdentityServer3.Core.Services;
+using IdentityServer3.Core.Services.InMemory;
 using Moq;
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Security.Claims;
 using System.Threading.Tasks;
-using Thinktecture.IdentityServer.Core;
-using Thinktecture.IdentityServer.Core.Models;
-using Thinktecture.IdentityServer.Core.Services;
-using Thinktecture.IdentityServer.Core.Services.InMemory;
 using Xunit;
 
-namespace Thinktecture.IdentityServer.Tests.Validation.TokenRequest
+namespace IdentityServer3.Tests.Validation.TokenRequest
 {
     
     public class TokenRequestValidation_Valid
@@ -45,6 +45,7 @@ namespace Thinktecture.IdentityServer.Tests.Validation.TokenRequest
 
             var code = new AuthorizationCode
             {
+                Subject = IdentityServerPrincipal.Create("123", "bob"),
                 Client = client,
                 RedirectUri = "https://server/cb",
                 RequestedScopes = new List<Scope>
@@ -81,6 +82,7 @@ namespace Thinktecture.IdentityServer.Tests.Validation.TokenRequest
             var code = new AuthorizationCode
             {
                 Client = client,
+                Subject = IdentityServerPrincipal.Create("123", "bob"),
                 RedirectUri = "https://server/cb",
                 RequestedScopes = new List<Scope>
                 {
@@ -115,6 +117,23 @@ namespace Thinktecture.IdentityServer.Tests.Validation.TokenRequest
         public async Task Valid_ClientCredentials_Request()
         {
             var client = await _clients.FindClientByIdAsync("client");
+
+            var validator = Factory.CreateTokenRequestValidator();
+
+            var parameters = new NameValueCollection();
+            parameters.Add(Constants.TokenRequest.GrantType, Constants.GrantTypes.ClientCredentials);
+            parameters.Add(Constants.TokenRequest.Scope, "resource");
+
+            var result = await validator.ValidateRequestAsync(parameters, client);
+
+            result.IsError.Should().BeFalse();
+        }
+
+        [Fact]
+        [Trait("Category", Category)]
+        public async Task Valid_ClientCredentials_Request_for_ImplicitClient_with_AllowClientCredentials_Flag()
+        {
+            var client = await _clients.FindClientByIdAsync("implicit_and_client_creds_client");
 
             var validator = Factory.CreateTokenRequestValidator();
 
@@ -223,8 +242,6 @@ namespace Thinktecture.IdentityServer.Tests.Validation.TokenRequest
         public async Task Valid_RefreshToken_Request()
         {
             var mock = new Mock<IUserService>();
-            mock.Setup(u => u.IsActiveAsync(It.IsAny<ClaimsPrincipal>())).Returns(Task.FromResult(true));
-
             var subjectClaim = new Claim(Constants.ClaimTypes.Subject, "foo");
 
             var refreshToken = new RefreshToken
@@ -262,8 +279,6 @@ namespace Thinktecture.IdentityServer.Tests.Validation.TokenRequest
         public async Task Valid_RefreshToken_Request_using_Restricted_Client()
         {
             var mock = new Mock<IUserService>();
-            mock.Setup(u => u.IsActiveAsync(It.IsAny<ClaimsPrincipal>())).Returns(Task.FromResult(true));
-
             var subjectClaim = new Claim(Constants.ClaimTypes.Subject, "foo");
 
             var refreshToken = new RefreshToken

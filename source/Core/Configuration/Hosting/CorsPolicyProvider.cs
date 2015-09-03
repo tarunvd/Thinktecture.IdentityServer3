@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+using IdentityServer3.Core.Extensions;
+using IdentityServer3.Core.Logging;
+using IdentityServer3.Core.Services;
 using Microsoft.Owin;
 using Microsoft.Owin.Cors;
 using System;
@@ -21,44 +24,58 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace Thinktecture.IdentityServer.Core.Configuration.Hosting
+namespace IdentityServer3.Core.Configuration.Hosting
 {
     internal class CorsPolicyProvider : ICorsPolicyProvider
     {
-        readonly CorsPolicy policy;
+        private readonly static ILog Logger = LogProvider.GetCurrentClassLogger();
+        
         readonly string[] paths;
 
-        public CorsPolicyProvider(CorsPolicy policy, IEnumerable<string> allowedPaths)
+        public CorsPolicyProvider(IEnumerable<string> allowedPaths)
         {
-            if (policy == null) throw new ArgumentNullException("policy");
             if (allowedPaths == null) throw new ArgumentNullException("allowedPaths");
 
-            this.policy = policy;
             this.paths = allowedPaths.Select(Normalize).ToArray();
         }
 
         public async Task<System.Web.Cors.CorsPolicy> GetCorsPolicyAsync(IOwinRequest request)
         {
-            if (IsPathAllowed(request))
+            var path = request.Path.ToString();
+            var origin = request.Headers["Origin"];
+
+            // see if the Origin is different than this server's origin. if so
+            // that indicates a proper CORS request
+            var thisOrigin = request.Uri.Scheme + "://" + request.Uri.Authority;
+            if (origin != null && origin != thisOrigin)
             {
-                var origin = request.Headers["Origin"];
-                if (origin != null)
+                if (IsPathAllowed(request))
                 {
-                    if (policy.AllowedOrigins.Contains(origin, StringComparer.OrdinalIgnoreCase))
+                    Logger.InfoFormat("CORS request made for path: {0} from origin: {1}", path, origin);
+
+                    if (await IsOriginAllowed(origin, request.Environment))
                     {
+                        Logger.Info("CorsPolicyService allowed origin");
                         return Allow(origin);
                     }
-
-                    if (policy.PolicyCallback != null)
+                    else
                     {
-                        if (await policy.PolicyCallback(origin))
-                        {
-                            return Allow(origin);
-                        }
+                        Logger.Info("CorsPolicyService did not allow origin");
                     }
                 }
+                else
+                {
+                    Logger.WarnFormat("CORS request made for path: {0} from origin: {1} but rejected because invalid CORS path", path, origin);
+                }
             }
+
             return null;
+        }
+
+        protected virtual async Task<bool> IsOriginAllowed(string origin, IDictionary<string, object> env)
+        {
+            var corsPolicy = env.ResolveDependency<ICorsPolicyService>();
+            return await corsPolicy.IsOriginAllowedAsync(origin);
         }
 
         private bool IsPathAllowed(IOwinRequest request)
